@@ -8,32 +8,22 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
 
-export async function loginAction(credentials: LoginValues): Promise<{ error: string }> {
+export async function loginAction(credentials: LoginValues): Promise<{ error?: string }> {
   try {
-    const { username, email, password } = loginSchema.parse(credentials);
+    const { email, password } = loginSchema.parse(credentials);
 
-    // Check if user exists
+    // Check if user exists by email
     const user = await prisma.user.findFirst({
       where: {
-        OR: [
-          {
-            email: {
-              equals: email,
-              mode: "insensitive"
-            }
-          },
-          {
-            username: {
-              equals: username,
-              mode: "insensitive"
-            }
-          }
-        ]
+        email: {
+          equals: email,
+          mode: "insensitive"
+        }
       }
     });
 
     if (!user || !user.password) {
-      return { error: "Invalid email/username or password" }
+      return { error: "Invalid email or password" };
     }
 
     // Verify password
@@ -45,12 +35,12 @@ export async function loginAction(credentials: LoginValues): Promise<{ error: st
     });
 
     if (!validPassword) {
-      return { error: "Invalid email/username or password" }
+      return { error: "Invalid email or password" };
     }
 
     // Check if email is verified
     if (!user.emailVerified) {
-      return { error: "Please verify your email before logging in" }
+      return { error: "Please verify your email before logging in" };
     }
 
     // Create session for the user
@@ -67,8 +57,6 @@ export async function loginAction(credentials: LoginValues): Promise<{ error: st
 
   } catch (error) {
     if (isRedirectError(error)) throw error;
-    return {
-      error: (error as Error).message
-    }
+    return { error: (error as Error).message };
   }
 }
