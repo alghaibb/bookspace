@@ -13,12 +13,8 @@ export const registerSchema = z.object({
 export type RegisterValues = z.infer<typeof registerSchema>;
 
 export const loginSchema = z.object({
-  email: z.string().email().trim().optional(),
-  username: z.string().min(3).regex(/^[a-zA-Z0-9_-]+$/).trim().optional(),
+  email: z.string().email().trim(),
   password: z.string().min(8).trim(),
-}).refine(data => data.email || data.username, {
-  message: "Either email or username must be provided",
-  path: ["email", "username"],
 });
 
 export type LoginValues = z.infer<typeof loginSchema>;
@@ -30,8 +26,13 @@ export const emailVerificationSchema = z.object({
 
 export type EmailVerificationValues = z.infer<typeof emailVerificationSchema>;
 
-export const resetPasswordSchema = z.object({
+export const forgotPasswordSchema = z.object({
   email: z.string().email().trim(),
+});
+
+export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
   token: z.string().trim(),
   newPassword: z.string().min(8).trim(),
   confirmNewPassword: z.string().min(8).trim(),
