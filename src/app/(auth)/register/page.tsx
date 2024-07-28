@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 
-import registerImage from "@/assets/signup-image.jpg";
+import registerImage from "@/assets/creating-account-image.png";
+import RegisterForm from "./RegisterForm";
 
 export const metadata: Metadata = {
   title: "Register",
@@ -21,6 +22,7 @@ export default function RegisterPage() {
           </p>
         </div>
         <div className="space-y-5">
+          <RegisterForm />
           <Link href="/login" className="block text-center">
             <Button variant="link">Already have an account? Login</Button>
           </Link>

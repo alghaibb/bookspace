@@ -21,7 +21,7 @@ export async function forgotPasswordAction(credentials: ForgotPasswordValues): P
 
     if (!user) {
       return {
-        error: "User not found"
+        success: "If an account with that email exists, a password reset email will be sent."
       };
     }
 
@@ -31,12 +31,12 @@ export async function forgotPasswordAction(credentials: ForgotPasswordValues): P
     // Send password reset email
     await sendPasswordResetEmail(email, resetToken);
 
-    return { success: "Password reset email sent" };
+    return { success: "If an account with that email exists, a password reset email will be sent." };
 
   } catch (error) {
     console.error(error);
     return {
-      error: (error as Error).message
+      error: "An error occurred while processing your request."
     };
   }
 }
