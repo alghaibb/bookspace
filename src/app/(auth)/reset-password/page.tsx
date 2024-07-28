@@ -1,5 +1,7 @@
 import { Metadata } from "next";
 import ResetPasswordForm from "./ResetPasswordForm";
+import Image from "next/image";
+import resetPasswordImage from "@/assets/reset-password-image.jpg";
 
 export const metadata: Metadata = {
   title: "Reset Password",
@@ -17,6 +19,11 @@ export default function ResetPasswordPage() {
         </div>
         <ResetPasswordForm />
       </div>
+      <Image
+        src={resetPasswordImage}
+        alt="Image of someone frustrated for forgetting their password"
+        className="hidden object-cover w-1/2 md:block"
+      />
     </div>
   );
 }

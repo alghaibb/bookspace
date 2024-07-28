@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 
-import registerImage from "@/assets/creating-account-image.png";
+import registerImage from "@/assets/register-account-image.jpg";
 import RegisterForm from "./RegisterForm";
 
 export const metadata: Metadata = {

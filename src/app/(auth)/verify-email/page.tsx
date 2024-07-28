@@ -1,9 +1,7 @@
 import { Metadata } from "next";
-import Link from "next/link";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
 import VerifyEmailForm from "./VerifyEmailForm";
-import verifyEmailImage from "@/assets/verify-email-image.png";
+import verifyEmailImage from "@/assets/verify-email-image.jpg";
 
 export const metadata: Metadata = {
   title: "Verify Email",

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import ForgotPasswordForm from "./ForgotPasswordForm";
 import Image from "next/image";
-import forgotPasswordImage from "@/assets/forgot-password-image.png";
+import forgotPasswordImage from "@/assets/forgot-password-image.jpg";
 
 export const metadata: Metadata = {
   title: "Forgot Password",
