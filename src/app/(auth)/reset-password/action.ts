@@ -4,12 +4,10 @@ import prisma from "@/lib/prisma";
 import { resetPasswordSchema, ResetPasswordValues } from "@/lib/validations";
 import { hash } from "@node-rs/argon2";
 import { deletePasswordResetToken } from "@/utils/token";
-import { isRedirectError } from "next/dist/client/components/redirect";
-import { redirect } from "next/navigation";
 
-export async function resetPasswordAction(credentials: ResetPasswordValues, token: string): Promise<{ error?: string }> {
+export async function resetPasswordAction(credentials: ResetPasswordValues): Promise<{ error?: string, success?: string }> {
   try {
-    const { newPassword } = resetPasswordSchema.parse(credentials);
+    const { token, newPassword } = resetPasswordSchema.parse(credentials);
 
     // Check if reset token is valid and not expired
     const resetEntry = await prisma.resetPassword.findFirst({
@@ -42,13 +40,11 @@ export async function resetPasswordAction(credentials: ResetPasswordValues, toke
     // Delete reset token entry
     await deletePasswordResetToken(resetEntry.email, resetEntry.userId);
 
-    return redirect("/login");
-
+    return { success: "Password reset successfully" }; 
   } catch (error) {
-    if (isRedirectError(error)) throw error;
     console.error(error);
     return {
-      error: (error as Error).message
+      error: "An error occurred while resetting your password. Please try again."
     };
   }
 }
