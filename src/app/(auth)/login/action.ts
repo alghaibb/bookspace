@@ -7,10 +7,17 @@ import { verify } from "@node-rs/argon2";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
+import { checkRateLimit } from "@/utils/rateLimit";
 
 export async function loginAction(credentials: LoginValues): Promise<{ error?: string }> {
   try {
     const { email, password } = loginSchema.parse(credentials);
+
+    // Rate limit
+    const isAllowed = await checkRateLimit(`login:${email}`, 5, "1 h");
+    if (!isAllowed) {
+      return { error: "Too many login attempts. Please try again later." };
+    }
 
     // Check if user exists by email
     const user = await prisma.user.findFirst({

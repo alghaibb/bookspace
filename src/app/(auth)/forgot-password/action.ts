@@ -4,10 +4,17 @@ import prisma from "@/lib/prisma";
 import { forgotPasswordSchema, ForgotPasswordValues } from "@/lib/validations";
 import { generatePasswordResetToken } from "@/utils/token";
 import { sendPasswordResetEmail } from "@/utils/sendEmails";
+import { checkRateLimit } from "@/utils/rateLimit";
 
 export async function forgotPasswordAction(credentials: ForgotPasswordValues): Promise<{ error?: string, success?: string }> {
   try {
     const { email } = forgotPasswordSchema.parse(credentials);
+
+    // Check rate limit
+    const isAllowed = await checkRateLimit(`forgotPassword:${email}`, 5, "1 h");
+    if (!isAllowed) {
+      return { error: "You can only request a password reset 5 times per hour." };
+    }
 
     // Check if user exists
     const user = await prisma.user.findFirst({

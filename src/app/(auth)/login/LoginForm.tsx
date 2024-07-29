@@ -96,7 +96,7 @@ export default function LoginForm() {
         />
         <Link href="forgot-password">
           <Button variant="link" className="px-0 mt-2">
-            Forgot password? Reset here
+            Forgot password?
           </Button>
         </Link>
         <Loading type="submit" className="w-full" isLoading={isPending}>
