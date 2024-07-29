@@ -4,10 +4,18 @@ import prisma from "@/lib/prisma";
 import { sendVerificationEmail } from "@/utils/sendEmails";
 import { generateEmailVerificationToken, deleteEmailVerificationToken } from "@/utils/token";
 import { ResendOTPValues, resendOTPSchema } from "@/lib/validations";
+import { checkRateLimit } from "@/utils/rateLimit";
 
 export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ error?: string, success?: string }> {
   try {
     const { email } = resendOTPSchema.parse(credentials);
+
+    // Check rate limit
+    const isAllowed = await checkRateLimit(`resendOTP:${email}`, 5, "1 h");
+
+    if (!isAllowed) {
+      return { error: "You can only request a new OTP 5 times per hour." };
+    }
 
     // Check if user exists
     const user = await prisma.user.findFirst({

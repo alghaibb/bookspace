@@ -2,6 +2,8 @@ import { Metadata } from "next";
 import ForgotPasswordForm from "./ForgotPasswordForm";
 import Image from "next/image";
 import forgotPasswordImage from "@/assets/forgot-password-image.jpg";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Forgot Password",
@@ -18,6 +20,11 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
         <ForgotPasswordForm />
+        <Link href="/login">
+          <Button variant="link" className="px-0 mt-2">
+            Back to login
+          </Button>
+        </Link>
       </div>
       <Image
         src={forgotPasswordImage}
