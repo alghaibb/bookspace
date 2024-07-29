@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { VerifyEmailValues, verifyEmailSchema } from "@/lib/validations";
 import ResendOTPForm from "@/app/(auth)/(resend-otp)/ResendOTPForm";
+import CustomMessage from "@/components/CustomMessage";
 
 export default function VerifyEmailForm() {
   const [error, setError] = useState<string>();
@@ -55,11 +56,7 @@ export default function VerifyEmailForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-        {error && (
-          <p className="p-2 text-center bg-red-400 text-zinc-100 rounded-2xl">
-            {error}
-          </p>
-        )}
+        {error && <CustomMessage type="error" message={error} />}
         <FormField
           control={form.control}
           name="email"

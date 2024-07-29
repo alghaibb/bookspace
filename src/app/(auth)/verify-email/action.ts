@@ -5,10 +5,21 @@ import { verifyEmailSchema, VerifyEmailValues } from "@/lib/validations";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { redirect } from "next/navigation";
 import { deleteEmailVerificationToken } from "@/utils/token";
+import { checkRateLimit } from "@/utils/rateLimit";
+import { headers } from "next/headers";
 
 export async function verifyEmailAction(credentials: VerifyEmailValues): Promise<{ error: string }> {
   try {
     const { email, otp } = verifyEmailSchema.parse(credentials);
+
+    // Get IP address
+    const ip = headers().get("x-forwarded-for");
+
+    // Check rate limit
+    const isAllowed = await checkRateLimit(`verifyEmail:${ip}`, 5, "1m");
+    if (!isAllowed) {
+      return { error: "Too many incorrect attempts. Please try again in 1 minute." };
+    }
 
     // Check if user exists
     const user = await prisma.user.findFirst({
@@ -22,7 +33,7 @@ export async function verifyEmailAction(credentials: VerifyEmailValues): Promise
 
     if (!user) {
       return {
-        error: "User not found"
+        error: "Invalid email or invalid OTP"
       }
     }
 
@@ -38,7 +49,7 @@ export async function verifyEmailAction(credentials: VerifyEmailValues): Promise
     });
 
     if (!verificationEntry) {
-      return { error: "Invalid OTP or expired OTP" }
+      return { error: "Invalid email or invalid OTP" }
     }
 
     // Mark email as verified

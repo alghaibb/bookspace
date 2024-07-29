@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { resendOTPSchema, ResendOTPValues } from "@/lib/validations";
 import { resendOTPAction } from "./action";
 import Loading from "@/components/Loading";
+import CustomMessage from "@/components/CustomMessage";
 
 export default function ResendOTPForm() {
   const [error, setError] = useState<string>();
@@ -42,8 +43,8 @@ export default function ResendOTPForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-        {error && <p className="p-2 px-0 text-destructive">{error}</p>}
-        {success && <p className="p-2 px-0">{success}</p>}
+        {error && <CustomMessage type="info" message={error} />}
+        {success && <CustomMessage type="success" message={success} />}
         <FormField
           control={form.control}
           name="email"

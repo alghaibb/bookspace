@@ -5,14 +5,17 @@ import { forgotPasswordSchema, ForgotPasswordValues } from "@/lib/validations";
 import { generatePasswordResetToken } from "@/utils/token";
 import { sendPasswordResetEmail } from "@/utils/sendEmails";
 import { checkRateLimit } from "@/utils/rateLimit";
-
+import { headers } from "next/headers";
 
 export async function forgotPasswordAction(credentials: ForgotPasswordValues): Promise<{ error?: string, success?: string }> {
   try {
     const { email } = forgotPasswordSchema.parse(credentials);
 
+    // Get IP address
+    const ip = headers().get("x-forwarded-for");
+
     // Check rate limit
-    const isAllowed = await checkRateLimit(`forgotPassword:${email}`, 5, "1 h");
+    const isAllowed = await checkRateLimit(`forgotPassword:${ip}`, 5, "1h");
     if (!isAllowed) {
       return { error: "You can only request a password reset 5 times per hour." };
     }

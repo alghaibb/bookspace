@@ -17,6 +17,7 @@ import { resetPasswordSchema, ResetPasswordValues } from "@/lib/validations";
 import { resetPasswordAction } from "./action";
 import Loading from "@/components/Loading";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import CustomMessage from "@/components/CustomMessage";
 
 export default function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -65,8 +66,8 @@ export default function ResetPasswordForm() {
         }}
         className="space-y-3"
       >
-        {error && <p className="p-2 text-center text-destructive">{error}</p>}
-        {success && <p className="p-2 text-center">{success}</p>}
+        {error && <CustomMessage type="error" message={error} />}
+        {success && <CustomMessage type="success" message={success} />}
         <FormField
           control={form.control}
           name="newPassword"

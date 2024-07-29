@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { forgotPasswordSchema, ForgotPasswordValues } from "@/lib/validations";
 import { forgotPasswordAction } from "./action";
 import Loading from "@/components/Loading";
-import { Button } from "@/components/ui/button";
+import CustomMessage from "@/components/CustomMessage";
 
 export default function ForgotPasswordForm() {
   const [error, setError] = useState<string>();
@@ -42,8 +42,8 @@ export default function ForgotPasswordForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-        {error && <p className="p-2 text-center text-destructive">{error}</p>}
-        {success && <p className="p-2 text-center">{success}</p>}
+        {error && <CustomMessage type="error" message={error} />}
+        {success && <CustomMessage type="success" message={success} />}
         <FormField
           control={form.control}
           name="email"

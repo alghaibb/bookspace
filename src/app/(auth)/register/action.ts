@@ -9,13 +9,17 @@ import { sendVerificationEmail } from "@/utils/sendEmails";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { redirect } from "next/navigation";
 import { checkRateLimit } from "@/utils/rateLimit";
+import { headers } from "next/headers";
 
 export async function registerAction(credentials: RegisterValues): Promise<{ error: string }> {
   try {
     const { username, email, password } = registerSchema.parse(credentials);
 
+    // Get IP address
+    const ip = headers().get("x-forwarded-for");
+
     // Rate limit
-    const isAllowed = await checkRateLimit(`register:${email}`, 5, "1 h");
+    const isAllowed = await checkRateLimit(`register:${ip}`, 5, "1h");
     if (!isAllowed) {
       return { error: "Too many registration attempts. Please try again later." };
     }
