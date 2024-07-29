@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { Metadata } from "next";
 import ResetPasswordForm from "./ResetPasswordForm";
 import Image from "next/image";
 import resetPasswordImage from "@/assets/reset-password-image.jpg";
+import Loading from "@/components/Loading";
 
 export const metadata: Metadata = {
   title: "Reset Password",
@@ -17,7 +19,9 @@ export default function ResetPasswordPage() {
             Enter your new password to reset your account password.
           </p>
         </div>
-        <ResetPasswordForm />
+        <Suspense fallback={<Loading />}>
+          <ResetPasswordForm />
+        </Suspense>
       </div>
       <Image
         src={resetPasswordImage}
