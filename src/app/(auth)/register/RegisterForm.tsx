@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { registerAction } from "./action";
 import Loading from "@/components/Loading";
+import CustomMessage from "@/components/CustomMessage";
 
 export default function RegisterForm() {
   const [error, setError] = useState<string>();
@@ -49,11 +50,7 @@ export default function RegisterForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-        {error && (
-          <p className="p-2 text-center text-destructive rounded-2xl">
-            {error}
-          </p>
-        )}
+        {error && <CustomMessage type="error" message={error} />}
         <FormField
           control={form.control}
           name="username"

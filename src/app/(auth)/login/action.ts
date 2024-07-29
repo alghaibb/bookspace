@@ -7,14 +7,18 @@ import { verify } from "@node-rs/argon2";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
-import { checkRateLimit, incrementRateLimit } from "@/utils/rateLimit";
+import { checkRateLimit } from "@/utils/rateLimit";
+import { headers } from "next/headers";
 
 export async function loginAction(credentials: LoginValues): Promise<{ error?: string }> {
   try {
     const { email, password } = loginSchema.parse(credentials);
 
+    // Get IP address
+    const ip = headers().get("x-forwarded-for");
+
     // Rate limit
-    const isAllowed = await checkRateLimit(`login:${email}`, 5, "1 h");
+    const isAllowed = await checkRateLimit(`login:${ip}`, 5, "1h");
     if (!isAllowed) {
       return { error: "Too many login attempts. Please try again later." };
     }
@@ -30,8 +34,6 @@ export async function loginAction(credentials: LoginValues): Promise<{ error?: s
     });
 
     if (!user || !user.password) {
-      // Increment rate limit on failure
-      await incrementRateLimit(`login:${email}`, 5, "1 h");
       return { error: "Invalid email or password" };
     }
 
