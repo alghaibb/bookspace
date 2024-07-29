@@ -6,15 +6,16 @@ import { generateEmailVerificationToken, deleteEmailVerificationToken } from "@/
 import { ResendOTPValues, resendOTPSchema } from "@/lib/validations";
 import { checkRateLimit } from "@/utils/rateLimit";
 
+
 export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ error?: string, success?: string }> {
+
   try {
     const { email } = resendOTPSchema.parse(credentials);
 
-    // Check rate limit
-    const isAllowed = await checkRateLimit(`resendOTP:${email}`, 5, "1 h");
-
+    // Rate limit
+    const isAllowed = await checkRateLimit(`login:${email},`, 5, "1 h");
     if (!isAllowed) {
-      return { error: "You can only request a new OTP 5 times per hour." };
+      return { error: "You can only request an OTP 5 times per hour." };
     }
 
     // Check if user exists

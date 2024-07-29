@@ -7,7 +7,7 @@ import { verify } from "@node-rs/argon2";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
-import { checkRateLimit } from "@/utils/rateLimit";
+import { checkRateLimit, incrementRateLimit } from "@/utils/rateLimit";
 
 export async function loginAction(credentials: LoginValues): Promise<{ error?: string }> {
   try {
@@ -30,6 +30,8 @@ export async function loginAction(credentials: LoginValues): Promise<{ error?: s
     });
 
     if (!user || !user.password) {
+      // Increment rate limit on failure
+      await incrementRateLimit(`login:${email}`, 5, "1 h");
       return { error: "Invalid email or password" };
     }
 
