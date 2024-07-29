@@ -21,3 +21,12 @@ export const checkRateLimit = async (key: string, limit: number, window: string)
     return false;
   }
 };
+
+export const incrementRateLimit = async (key: string, limit: number, window: string): Promise<void> => {
+  try {
+    const rateLimit = createRateLimit(limit, window);
+    await rateLimit.limit(key, { increment: true });
+  } catch (error) {
+    console.error("Rate limit increment failed:", error);
+  }
+};
