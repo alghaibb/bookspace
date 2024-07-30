@@ -13,6 +13,7 @@ export default function NotFound() {
           width={400}
           height={300}
           className="mb-4"
+          priority
         />
         <h1 className="text-4xl font-bold text-zinc-800 mb-2">
           Page Not Found

@@ -27,7 +27,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+        <div className="min-h-[100dvh] grid grid-rows-[auto_1fr_auto]">
+          <main>{children}</main>
+        </div>
       </body>
     </html>
   );
