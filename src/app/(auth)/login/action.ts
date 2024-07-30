@@ -8,11 +8,16 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { checkRateLimit, incrementRateLimit } from "@/utils/rateLimit";
-import { headers } from "next/headers";
 
 export async function loginAction(credentials: LoginValues): Promise<{ error?: string }> {
   try {
     const { email, password } = loginSchema.parse(credentials);
+
+    // Rate limit based on email
+    const isAllowed = await checkRateLimit(`login:${email}`, 5, "15m");
+    if (!isAllowed) {
+      return { error: "Too many login attempts. Please try again in 15 minutes." };
+    }
 
     // Check if user exists by email
     const user = await prisma.user.findFirst({
@@ -24,29 +29,8 @@ export async function loginAction(credentials: LoginValues): Promise<{ error?: s
       }
     });
 
-    // Get IP address
-    const ip = headers().get("x-forwarded-for") || "unknown-ip";
-
-    // If user exists, rate limit based on email, otherwise based on IP
-    const rateLimitKey = user ? `login:${email}` : `login:${ip}`;
-    const isAllowed = await checkRateLimit(rateLimitKey, 5, "1h");
-
-    if (!isAllowed) {
-      if (user) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            lockoutUntil: new Date(Date.now() + 60 * 60 * 1000), // 1 hour lockout
-            lockoutReason: "Too many failed login attempts",
-          }
-        });
-      }
-      return { error: "Too many login attempts. Please try again later." };
-    }
-
-
     if (!user || !user.password) {
-      await incrementRateLimit(`login:${ip}`, 5, "1h"); // Increment on failed attempt
+      await incrementRateLimit(`login:${email}`, 5, "15m");
       return { error: "Invalid email or password" };
     }
 
@@ -59,19 +43,13 @@ export async function loginAction(credentials: LoginValues): Promise<{ error?: s
     });
 
     if (!validPassword) {
-      await incrementRateLimit(`login:${ip}`, 5, "1h");
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          failedAttempts: user.failedAttempts + 1,
-        }
-      });
+      await incrementRateLimit(`login:${email}`, 5, "15m");
       return { error: "Invalid email or password" };
     }
 
     // Check if email is verified
     if (!user.emailVerified) {
-      await incrementRateLimit(`login:${ip}`, 5, "1h"); // Increment on failed attempt
+      await incrementRateLimit(`login:${email}`, 5, "15m");
       return { error: "Please verify your email before logging in" };
     }
 
