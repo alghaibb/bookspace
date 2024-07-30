@@ -7,19 +7,17 @@ import { ResendOTPValues, resendOTPSchema } from "@/lib/validations";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { headers } from "next/headers";
 
-
 export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ error?: string, success?: string }> {
-
   try {
     const { email } = resendOTPSchema.parse(credentials);
 
     // Get IP address
-    const ip = headers().get("x-forwarded-for")
+    const ip = headers().get("x-forwarded-for") || "unknown-ip";
 
-    // Rate limit
-    const isAllowed = await checkRateLimit(`login:${ip},`, 5, "1h");
+    // Rate limit based on IP
+    const isAllowed = await checkRateLimit(`resendOTP:${ip}`, 5, "10m");
     if (!isAllowed) {
-      return { error: "You can only request an OTP 5 times per hour." };
+      return { error: "You can only request an OTP 5 times per 10 minutes." };
     }
 
     // Check if user exists

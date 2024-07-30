@@ -2,13 +2,13 @@
 
 import prisma from "@/lib/prisma";
 import { registerSchema, RegisterValues } from "@/lib/validations";
-import { hash } from "@node-rs/argon2"
+import { hash } from "@node-rs/argon2";
 import { generateIdFromEntropySize } from "lucia";
 import { generateEmailVerificationToken } from "@/utils/token";
 import { sendVerificationEmail } from "@/utils/sendEmails";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { redirect } from "next/navigation";
-import { checkRateLimit } from "@/utils/rateLimit";
+import { checkRateLimit, incrementRateLimit } from "@/utils/rateLimit";
 import { headers } from "next/headers";
 
 export async function registerAction(credentials: RegisterValues): Promise<{ error: string }> {
@@ -16,14 +16,13 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
     const { username, email, password } = registerSchema.parse(credentials);
 
     // Get IP address
-    const ip = headers().get("x-forwarded-for");
+    const ip = headers().get("x-forwarded-for") || "unknown-ip";
 
     // Rate limit
-    const isAllowed = await checkRateLimit(`register:${ip}`, 5, "1h");
+    const isAllowed = await checkRateLimit(`register:${ip}`, 5, "30m");
     if (!isAllowed) {
       return { error: "Too many registration attempts. Please try again later." };
     }
-
 
     const passwordHash = await hash(password, {
       memoryCost: 19456,
@@ -47,7 +46,7 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
     if (usernameExists) {
       return {
         error: "Username/email already taken"
-      }
+      };
     }
 
     // Check if email already exists
@@ -63,7 +62,7 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
     if (emailExists) {
       return {
         error: "Username/email already taken"
-      }
+      };
     }
 
     await prisma.user.create({
@@ -75,10 +74,9 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
         password: passwordHash,
         emailVerified: false,
       }
-    })
+    });
 
     const verificationOTP = await generateEmailVerificationToken(email, userId);
-
     await sendVerificationEmail(email, verificationOTP);
 
     return redirect("/verify-email");
@@ -88,6 +86,6 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
     console.error(error);
     return {
       error: (error as Error).message
-    }
+    };
   }
 }

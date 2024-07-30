@@ -5,7 +5,7 @@ import { verifyEmailSchema, VerifyEmailValues } from "@/lib/validations";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { redirect } from "next/navigation";
 import { deleteEmailVerificationToken } from "@/utils/token";
-import { checkRateLimit } from "@/utils/rateLimit";
+import { checkRateLimit, incrementRateLimit } from "@/utils/rateLimit";
 import { headers } from "next/headers";
 
 export async function verifyEmailAction(credentials: VerifyEmailValues): Promise<{ error: string }> {
@@ -13,7 +13,7 @@ export async function verifyEmailAction(credentials: VerifyEmailValues): Promise
     const { email, otp } = verifyEmailSchema.parse(credentials);
 
     // Get IP address
-    const ip = headers().get("x-forwarded-for");
+    const ip = headers().get("x-forwarded-for") || "unknown-ip";
 
     // Check rate limit
     const isAllowed = await checkRateLimit(`verifyEmail:${ip}`, 5, "1m");
@@ -32,9 +32,8 @@ export async function verifyEmailAction(credentials: VerifyEmailValues): Promise
     });
 
     if (!user) {
-      return {
-        error: "Invalid email or invalid OTP"
-      }
+      await incrementRateLimit(`verifyEmail:${ip}`, 5, "1m"); // Increment on failed attempt
+      return { error: "Invalid email or invalid OTP" };
     }
 
     // Check if OTP is valid or not expired
@@ -49,7 +48,8 @@ export async function verifyEmailAction(credentials: VerifyEmailValues): Promise
     });
 
     if (!verificationEntry) {
-      return { error: "Invalid email or invalid OTP" }
+      await incrementRateLimit(`verifyEmail:${ip}`, 5, "1m"); // Increment on failed attempt
+      return { error: "Invalid email or invalid OTP" };
     }
 
     // Mark email as verified
@@ -67,6 +67,6 @@ export async function verifyEmailAction(credentials: VerifyEmailValues): Promise
     if (isRedirectError(error)) throw error;
     return {
       error: (error as Error).message
-    }
+    };
   }
 }

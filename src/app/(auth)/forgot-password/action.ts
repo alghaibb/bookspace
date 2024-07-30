@@ -12,12 +12,12 @@ export async function forgotPasswordAction(credentials: ForgotPasswordValues): P
     const { email } = forgotPasswordSchema.parse(credentials);
 
     // Get IP address
-    const ip = headers().get("x-forwarded-for");
+    const ip = headers().get("x-forwarded-for") || "unknown-ip";
 
     // Check rate limit
-    const isAllowed = await checkRateLimit(`forgotPassword:${ip}`, 5, "1h");
+    const isAllowed = await checkRateLimit(`forgotPassword:${ip}`, 5, "30m");
     if (!isAllowed) {
-      return { error: "You can only request a password reset 5 times per hour." };
+      return { error: "You can only request a password reset 5 times per 30 minutes." };
     }
 
     // Check if user exists
