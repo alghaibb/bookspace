@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { resetPasswordSchema, ResetPasswordValues } from "@/lib/validations";
 import { hash } from "@node-rs/argon2";
+import { genSaltSync } from "bcrypt";
 import { deletePasswordResetToken } from "@/utils/token";
 
 export async function resetPasswordAction(credentials: ResetPasswordValues): Promise<{ error?: string, success?: string }> {
@@ -23,8 +24,11 @@ export async function resetPasswordAction(credentials: ResetPasswordValues): Pro
       return { error: "Invalid or expired reset token" };
     }
 
+    // Generate salt
+    const salt = genSaltSync();
+
     // Hash new password
-    const passwordHash = await hash(newPassword, {
+    const passwordHash = await hash(newPassword + salt, {
       memoryCost: 19456,
       timeCost: 2,
       outputLen: 32,
@@ -40,7 +44,7 @@ export async function resetPasswordAction(credentials: ResetPasswordValues): Pro
     // Delete reset token entry
     await deletePasswordResetToken(resetEntry.email, resetEntry.userId);
 
-    return { success: "Password reset successfully" }; 
+    return { success: "Password reset successfully" };
   } catch (error) {
     console.error(error);
     return {

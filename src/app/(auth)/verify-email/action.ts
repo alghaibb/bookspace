@@ -13,7 +13,7 @@ export async function verifyEmailAction(credentials: VerifyEmailValues): Promise
     const { email, otp } = verifyEmailSchema.parse(credentials);
 
     // Get IP address
-    const ip = headers().get("x-forwarded-for") || "unknown-ip";
+    const ip = headers().get("x-forwarded-for");
 
     // Check rate limit
     const isAllowed = await checkRateLimit(`verifyEmail:${ip}`, 5, "1m");

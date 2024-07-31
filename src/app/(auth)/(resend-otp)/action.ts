@@ -12,7 +12,7 @@ export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ e
     const { email } = resendOTPSchema.parse(credentials);
 
     // Get IP address
-    const ip = headers().get("x-forwarded-for") || "unknown-ip";
+    const ip = headers().get("x-forwarded-for");
 
     // Rate limit based on IP
     const isAllowed = await checkRateLimit(`resendOTP:${ip}`, 5, "10m");

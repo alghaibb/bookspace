@@ -58,7 +58,7 @@ export async function loginAction(credentials: LoginValues): Promise<{ error?: s
       where: { id: user.id },
       data: {
         lockoutUntil: null,
-        failedAttempts: 0,
+        loginAttempts: 0,
         lockoutReason: null,
       }
     });

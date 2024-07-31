@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { registerSchema, RegisterValues } from "@/lib/validations";
 import { hash } from "@node-rs/argon2";
+import { genSaltSync } from "bcrypt";
 import { generateIdFromEntropySize } from "lucia";
 import { generateEmailVerificationToken } from "@/utils/token";
 import { sendVerificationEmail } from "@/utils/sendEmails";
@@ -16,7 +17,7 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
     const { username, email, password } = registerSchema.parse(credentials);
 
     // Get IP address
-    const ip = headers().get("x-forwarded-for") || "unknown-ip";
+    const ip = headers().get("x-forwarded-for");
 
     // Rate limit
     const isAllowed = await checkRateLimit(`register:${ip}`, 5, "30m");
@@ -24,7 +25,10 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
       return { error: "Too many registration attempts. Please try again later." };
     }
 
-    const passwordHash = await hash(password, {
+    // Generate salt
+    const salt = genSaltSync();
+
+    const passwordHash = await hash(password + salt, {
       memoryCost: 19456,
       timeCost: 2,
       outputLen: 32,
@@ -72,6 +76,7 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
         displayName: username,
         email,
         password: passwordHash,
+        salt: salt,
         emailVerified: false,
       }
     });

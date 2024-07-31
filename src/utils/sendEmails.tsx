@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { Resend } from "resend";
 import { VerifyEmail, ForgotPasswordEmail } from "@/components/emails";
-import { render } from "@react-email/components"; // Add this to render the email
+import { render } from "@react-email/components";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -33,7 +33,7 @@ export const sendVerificationEmail = async (
       html: emailHtml,
     });
 
-    console.log("Email sent successfully");
+    console.log("Verification email sent successfully");
   } catch (error) {
     console.error("Error sending email:", error);
   }
@@ -67,7 +67,7 @@ export const sendPasswordResetEmail = async (
       html: emailHtml,
     });
 
-    console.log("Email sent successfully");
+    console.log("Password reset email sent successfully");
   } catch (error) {
     console.error("Error sending email:", error);
   }

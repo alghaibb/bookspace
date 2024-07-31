@@ -10,19 +10,20 @@ datasource db {
 }
 
 model User {
-  id             String    @id @default(uuid())
-  username       String    @unique
-  displayName    String
-  email          String?   @unique
-  password       String?
-  googleId       String?   @unique
-  emailVerified  Boolean   @default(false)
-  avatarUrl      String?
-  bio            String?
-  lockoutUntil   DateTime?
-  failedAttempts Int       @default(0)
-  lockoutReason  String?
-  sessions       Session[]
+  id            String    @id @default(uuid())
+  username      String    @unique
+  displayName   String
+  email         String?   @unique
+  password      String?
+  salt          String?
+  googleId      String?   @unique
+  emailVerified Boolean   @default(false)
+  avatarUrl     String?
+  bio           String?
+  lockoutUntil  DateTime?
+  loginAttempts Int       @default(0)
+  lockoutReason String?
+  sessions      Session[]
 
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
