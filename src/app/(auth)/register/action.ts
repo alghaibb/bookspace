@@ -3,32 +3,45 @@
 import prisma from "@/lib/prisma";
 import { registerSchema, RegisterValues } from "@/lib/validations";
 import { hash } from "@node-rs/argon2";
-import { genSaltSync } from "bcrypt";
 import { generateIdFromEntropySize } from "lucia";
 import { generateEmailVerificationToken } from "@/utils/token";
 import { sendVerificationEmail } from "@/utils/sendEmails";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { redirect } from "next/navigation";
-import { checkRateLimit, incrementRateLimit } from "@/utils/rateLimit";
-import { headers } from "next/headers";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+import { Duration } from "@/lib/duration";
 
+// Initialize Upstash Redis client
+const redis = Redis.fromEnv();
+
+// Function to create rate limiters with specific limits and durations
+const createRateLimit = (limit: number, window: Duration) => {
+  return new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(limit, window),
+  });
+};
+
+// Register action function
 export async function registerAction(credentials: RegisterValues): Promise<{ error: string }> {
   try {
+    // Validate registration credentials using the provided schema
     const { username, email, password } = registerSchema.parse(credentials);
 
-    // Get IP address
-    const ip = headers().get("x-forwarded-for");
+    // Define rate limiter with limit of 5 attempts per 30 minutes
+    const rateLimit = createRateLimit(5, "30m");
+    // Check rate limit for the specific email key
+    const { success, reset } = await rateLimit.limit(`register:${email}`);
 
-    // Rate limit
-    const isAllowed = await checkRateLimit(`register:${ip}`, 5, "30m");
-    if (!isAllowed) {
-      return { error: "Too many registration attempts. Please try again later." };
+    // If rate limit exceeded, return error with remaining wait time
+    if (!success) {
+      const resetMinutes = reset ? Math.ceil((reset - Date.now()) / 1000 / 60) : 30;
+      return { error: `Too many registration attempts. Please try again in ${resetMinutes} minutes.` };
     }
 
-    // Generate salt
-    const salt = genSaltSync();
-
-    const passwordHash = await hash(password + salt, {
+    // Hash the password
+    const passwordHash = await hash(password, {
       memoryCost: 19456,
       timeCost: 2,
       outputLen: 32,
@@ -47,9 +60,10 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
       }
     });
 
+    // If username exists, return error
     if (usernameExists) {
       return {
-        error: "Username/email already taken"
+        error: "Username already taken"
       };
     }
 
@@ -63,12 +77,14 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
       }
     });
 
+    // If email exists, return error
     if (emailExists) {
       return {
-        error: "Username/email already taken"
+        error: "Email already taken"
       };
     }
 
+    // Create the new user in the database
     await prisma.user.create({
       data: {
         id: userId,
@@ -76,17 +92,25 @@ export async function registerAction(credentials: RegisterValues): Promise<{ err
         displayName: username,
         email,
         password: passwordHash,
-        salt: salt,
         emailVerified: false,
+        lockoutReason: null,
+        lockoutUntil: null,
+        loginAttempts: 0,
       }
     });
 
+    // Reset the rate limit for this email
+    await redis.del(`register:${email}`);
+
+    // Generate email verification OTP and send the email
     const verificationOTP = await generateEmailVerificationToken(email, userId);
     await sendVerificationEmail(email, verificationOTP);
 
+    // Redirect to email verification page
     return redirect("/verify-email");
 
   } catch (error) {
+    // Handle redirect errors and return appropriate error messages
     if (isRedirectError(error)) throw error;
     console.error(error);
     return {

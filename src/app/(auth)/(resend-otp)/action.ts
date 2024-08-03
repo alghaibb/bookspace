@@ -4,23 +4,38 @@ import prisma from "@/lib/prisma";
 import { sendVerificationEmail } from "@/utils/sendEmails";
 import { generateEmailVerificationToken, deleteEmailVerificationToken } from "@/utils/token";
 import { ResendOTPValues, resendOTPSchema } from "@/lib/validations";
-import { checkRateLimit } from "@/utils/rateLimit";
-import { headers } from "next/headers";
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+import { Duration } from "@/lib/duration";
+// Initialize Upstash Redis client
+const redis = Redis.fromEnv();
 
+// Function to create rate limiters with specific limits and durations
+const createRateLimit = (limit: number, window: Duration) => {
+  return new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(limit, window),
+  });
+};
+
+// Resend OTP action function
 export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ error?: string, success?: string }> {
   try {
+    // Validate OTP resend credentials using the provided schema
     const { email } = resendOTPSchema.parse(credentials);
 
-    // Get IP address
-    const ip = headers().get("x-forwarded-for");
+    // Define rate limiter with limit of 5 requests per 10 minutes
+    const rateLimit = createRateLimit(5, "10m");
+    // Check rate limit for the specific IP key
+    const { success, reset } = await rateLimit.limit(`resendOTP:${email}`);
 
-    // Rate limit based on IP
-    const isAllowed = await checkRateLimit(`resendOTP:${ip}`, 5, "10m");
-    if (!isAllowed) {
-      return { error: "You can only request an OTP 5 times per 10 minutes." };
+    // If rate limit exceeded, return error with remaining wait time
+    if (!success) {
+      const resetMinutes = reset ? Math.ceil((reset - Date.now()) / 1000 / 60) : 10;
+      return { error: `You can only request an OTP 5 times per 10 minutes. Please try again in ${resetMinutes} minutes.` };
     }
 
-    // Check if user exists
+    // Check if user exists by email
     const user = await prisma.user.findFirst({
       where: {
         email: {
@@ -30,6 +45,7 @@ export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ e
       }
     });
 
+    // If user not found, respond with success message (to avoid exposing user existence)
     if (!user) {
       return { success: "If you have an account with us, you will receive an OTP." };
     }
@@ -50,6 +66,7 @@ export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ e
       }
     });
 
+    // If OTP was created within the last minute, return error
     if (existingOtp) {
       const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
       if (existingOtp.createdAt > oneMinuteAgo) {
