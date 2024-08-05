@@ -7,51 +7,24 @@ import { verify } from "@node-rs/argon2";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect";
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-import { Duration } from "@/lib/duration";
 
-// Initialize Upstash Redis client
-const redis = Redis.fromEnv();
-
-// Function to create rate limiters with specific limits and durations
-const createRateLimit = (limit: number, window: Duration) => {
-  return new Ratelimit({
-    redis,
-    limiter: Ratelimit.slidingWindow(limit, window),
-  });
-};
-
-// Login action function
 export async function loginAction(credentials: LoginValues): Promise<{ error?: string }> {
   try {
-    // Validate login credentials using the provided schema
     const { email, password } = loginSchema.parse(credentials);
-
-    // Define rate limiter with limit of 5 attempts per 15 minutes
-    const rateLimit = createRateLimit(5, "15m");
-    // Check rate limit for the specific email key
-    const { success, remaining, reset } = await rateLimit.limit(`login:${email}`);
-
-    // If rate limit exceeded, return error with remaining wait time
-    if (!success) {
-      const resetMinutes = reset ? Math.ceil((reset - Date.now()) / 1000 / 60) : 15;
-      return { error: `Too many login attempts. Please try again in ${resetMinutes} minutes` };
-    }
 
     // Check if user exists by email
     const user = await prisma.user.findFirst({
       where: {
         email: {
           equals: email,
-          mode: "insensitive"
-        }
-      }
+          mode: "insensitive",
+        },
+      },
     });
 
-    // If user not found or password is not set, increment rate limit and return error
+    // If user not found or password is not set, return error
     if (!user || !user.password) {
-      return { error: `Invalid email or password. You have ${remaining ?? 0} attempts left` };
+      return { error: "Invalid email or password." };
     }
 
     // Verify the provided password against the stored password hash
@@ -62,8 +35,25 @@ export async function loginAction(credentials: LoginValues): Promise<{ error?: s
       parallelism: 1,
     });
 
-    // If password verification fails, increment rate limit and return error
+    // If password verification fails, return error
     if (!validPassword) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          loginAttempts: user.loginAttempts + 1,
+        },
+      });
+
+      if (user.loginAttempts + 1 >= 5) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            lockoutUntil: new Date(Date.now() + 15 * 60 * 1000),
+            lockoutReason: "Too many failed login attempts",
+          },
+        });
+      }
+
       return { error: "Invalid email or password" };
     }
 
@@ -79,7 +69,7 @@ export async function loginAction(credentials: LoginValues): Promise<{ error?: s
         lockoutUntil: null,
         loginAttempts: 0,
         lockoutReason: null,
-      }
+      },
     });
 
     // Create a new session for the user
@@ -87,15 +77,10 @@ export async function loginAction(credentials: LoginValues): Promise<{ error?: s
     const sessionCookie = lucia.createSessionCookie(session.id);
 
     // Set session cookie in response
-    cookies().set(
-      sessionCookie.name,
-      sessionCookie.value,
-      sessionCookie.attributes
-    );
+    cookies().set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
     // Redirect user to the homepage after successful login
     redirect("/");
-
   } catch (error) {
     // Handle redirect errors and return appropriate error messages
     if (isRedirectError(error)) throw error;
