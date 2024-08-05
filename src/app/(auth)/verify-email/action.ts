@@ -5,12 +5,30 @@ import { verifyEmailSchema, VerifyEmailValues } from "@/lib/validations";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { redirect } from "next/navigation";
 import { deleteEmailVerificationToken } from "@/utils/token";
+import { headers } from "next/headers";
+import { Ratelimit } from "@upstash/ratelimit";
+import { redis } from "@/lib/upstash";
+
+// Initialize rate limiter
+const rateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, "1m"),
+});
 
 export async function verifyEmailAction(credentials: VerifyEmailValues): Promise<{ error?: string }> {
   try {
     const { email, otp } = verifyEmailSchema.parse(credentials);
+    const ip = headers().get("x-forwarded-for") || "unknown";
 
-    // Check if user exists
+    // Rate limit check
+    const rateLimitKey = `verifyEmail:${email}:${ip}`;
+    const { success, reset } = await rateLimit.limit(rateLimitKey);
+
+    if (!success) {
+      const resetMinutes = reset ? Math.ceil((reset - Date.now()) / 1000 / 60) : 1;
+      return { error: `Too many incorrect attempts. Please try again in ${resetMinutes} minutes.` };
+    }
+
     const user = await prisma.user.findFirst({
       where: {
         email: {
@@ -20,12 +38,10 @@ export async function verifyEmailAction(credentials: VerifyEmailValues): Promise
       },
     });
 
-    // If user not found, return error
     if (!user) {
       return { error: "Invalid email or invalid OTP" };
     }
 
-    // Check if OTP is valid and not expired
     const verificationEntry = await prisma.emailVerification.findFirst({
       where: {
         email,
@@ -36,7 +52,6 @@ export async function verifyEmailAction(credentials: VerifyEmailValues): Promise
       },
     });
 
-    // If OTP is invalid or expired, return error
     if (!verificationEntry) {
       return { error: "Invalid email or invalid OTP" };
     }

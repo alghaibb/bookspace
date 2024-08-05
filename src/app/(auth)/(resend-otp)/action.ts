@@ -4,10 +4,29 @@ import prisma from "@/lib/prisma";
 import { sendVerificationEmail } from "@/utils/sendEmails";
 import { generateEmailVerificationToken, deleteEmailVerificationToken } from "@/utils/token";
 import { ResendOTPValues, resendOTPSchema } from "@/lib/validations";
+import { headers } from "next/headers";
+import { Ratelimit } from "@upstash/ratelimit";
+import { redis } from "@/lib/upstash";
 
-export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ error?: string, success?: string }> {
+const rateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, "10m"),
+});
+
+export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ error?: string; success?: string }> {
   try {
     const { email } = resendOTPSchema.parse(credentials);
+    const ip = headers().get("x-forwarded-for") || "unknown";
+
+    // Determine rate limit key
+    const rateLimitKey = `resendOTP:${email}:${ip}`;
+    const { success, reset } = await rateLimit.limit(rateLimitKey);
+
+    // If rate limit exceeded, return error with remaining wait time
+    if (!success) {
+      const resetMinutes = reset ? Math.ceil((reset - Date.now()) / 1000 / 60) : 10;
+      return { error: `Too many OTP requests. Please try again in ${resetMinutes} minutes.` };
+    }
 
     // Check if user exists
     const user = await prisma.user.findFirst({
@@ -19,17 +38,14 @@ export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ e
       },
     });
 
-    // If user not found, respond with success message to avoid exposing user existence
     if (!user) {
       return { success: "If you have an account with us, you will receive an OTP." };
     }
 
-    // Check if email is already verified
     if (user.emailVerified) {
       return { error: "Email has already been verified." };
     }
 
-    // Check if there's an existing OTP that is not expired
     const existingOtp = await prisma.emailVerification.findFirst({
       where: {
         email,
@@ -40,7 +56,6 @@ export async function resendOTPAction(credentials: ResendOTPValues): Promise<{ e
       },
     });
 
-    // If OTP was created within the last minute, return an error
     if (existingOtp) {
       const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
       if (existingOtp.createdAt > oneMinuteAgo) {

@@ -8,10 +8,29 @@ import { generateEmailVerificationToken } from "@/utils/token";
 import { sendVerificationEmail } from "@/utils/sendEmails";
 import { isRedirectError } from "next/dist/client/components/redirect";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { Ratelimit } from "@upstash/ratelimit";
+import { redis } from "@/lib/upstash";
+
+const rateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, "30m"),
+});
 
 export async function registerAction(credentials: RegisterValues): Promise<{ error?: string }> {
   try {
     const { username, email, password } = registerSchema.parse(credentials);
+    const ip = headers().get("x-forwarded-for") || "unknown";
+
+    // Determine rate limit key
+    const rateLimitKey = `register:${email}:${ip}`;
+    const { success, reset } = await rateLimit.limit(rateLimitKey);
+
+    // If rate limit exceeded, return error with remaining wait time
+    if (!success) {
+      const resetMinutes = reset ? Math.ceil((reset - Date.now()) / 1000 / 60) : 30;
+      return { error: `Too many registration attempts. Please try again in ${resetMinutes} minutes.` };
+    }
 
     // Hash the password
     const passwordHash = await hash(password, {
